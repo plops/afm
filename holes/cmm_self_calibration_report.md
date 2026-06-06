@@ -207,11 +207,27 @@ If we cannot measure many points, we can measure the *same* small subset of 30 h
 ### Figure 1: Global CMM Calibration & Drift Parameters
 ![CMM Calibration Parameters](cmm_calibration_parameters.png)
 
+* **Explanation**: This figure shows the estimated scale errors ($s_x$, $s_y$) and squareness error ($\alpha$) across the 8 measurement runs, alongside the fitted linear drift rates ($c_x$, $c_y$). The scaling and squareness parameters are highly consistent across all runs, indicating that they represent static, stable geometric properties of the CMM structure. The drift rates are very small (typically $10$ to $30\ \mu$m/hr), demonstrating that once static scale and shear errors are decoupled, the remaining time-dependent thermal/servo drift is negligible.
+
 ### Figure 2: Raw vs. Calibrated Deviations & Mismatch Reduction
 ![CMM Drift and Deviations](cmm_drift_and_deviations.png)
+
+* **Explanation**: This figure displays the spatial vector field of coordinate deviations at each stage of the calibration for a representative run (`panel1Top1`):
+  1. **Raw Unrotated / Rotated Deviations**: The raw measured coordinate deviations show a clear systematic stretching along the CMM X axis (corresponding to the $+28.67$ ppm scale error) and a shearing pattern.
+  2. **Calibrated Physical Deviations**: Shows the true physical coordinate deviations $(\Delta u, \Delta v)$ of the plate holes. After correcting for the CMM errors, the unrotated and rotated measurements align perfectly.
+  3. **Mismatch Histogram (Residuals)**: Compares the distribution of the coordinate differences between the unrotated and rotated runs before and after calibration. The mismatch standard deviation collapses from up to **$6.6\ \mu$m** down to **$1.0 - 1.5\ \mu$m** (the physical repeatability limit of the probe).
 
 ### Figure 3: Bootstrap Parameter Distributions (Uncertainty)
 ![CMM Bootstrap Parameter Distributions](cmm_bootstrap_distributions.png)
 
+* **Explanation (Histograms Diagram)**: This figure shows the frequency histograms of the estimated calibration parameters ($s_x$, $s_y$, and $\alpha$) obtained from $B=50$ bootstrap resampling iterations of the residuals. 
+  - Each histogram displays a clean, symmetric bell-shaped (Gaussian) distribution centered around the global mean estimate.
+  - The narrow spread of these distributions visually demonstrates the high precision and confidence of our estimates ($s_x$: $\pm 0.13$ ppm, $s_y$: $\pm 0.19$ ppm, $\alpha$: $\pm 0.82\ \mu$rad), proving that the reversal self-calibration method is highly robust against measurement noise.
+
 ### Figure 4: 2D Spatial Coordinate Uncertainty Map
 ![2D Coordinate Uncertainty Map](coordinate_uncertainty_map.png)
+
+* **Explanation (Errors/Uncertainty Map)**: This figure shows a 2D spatial color map representing the standard error (uncertainty) of the calibrated physical coordinates ($u$ and $v$) at each of the 943 holes on the plate.
+  - The standard error is exceptionally low, averaging **$0.12\ \mu$m** in the $u$ coordinate and **$0.13\ \mu$m** in the $v$ coordinate.
+  - The uncertainty is highly uniform across the entire plate surface, showing that the global self-calibration system is well-conditioned and does not suffer from edge/corner effects or localized weakness in constraints.
+
