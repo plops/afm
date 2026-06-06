@@ -222,8 +222,33 @@ If the measurement is restricted to only the 4 corner holes of the grid plate, t
 4. **The Baseline Advantage (If Plate is Pre-Calibrated)**:
    - The only benefit of the corners is that they maximize the spatial baseline ($L_x = 500$ mm, $L_y = 550$ mm), which maximizes sensitivity to linear scale and squareness errors. If the plate's manufacturing errors were *already calibrated* ($\Delta u_i, \Delta v_i = 0$), 4 points would be sufficient to calibrate the CMM. Under a *self-calibration* framework, however, it is mathematically invalid.
 
----
+### 7.4 Transfer Standard Calibration: Using the Calibrated Plate on a Second Machine
+Once the rectangular grid plate has been fully calibrated on the first machine (CMM A) using the dense self-calibration method, the true coordinates $(u_i + \Delta u_i, v_i + \Delta v_i)$ of all 943 holes are known with sub-micrometer accuracy ($\approx 0.12\ \mu$m uncertainty). 
 
+This transforms the plate into a **calibrated transfer standard**. We can indeed use this master plate to estimate the scale and squareness errors of a second machine (CMM B) by measuring only the 4 corner holes in a single unrotated run:
+
+1. **Mathematical Feasibility (Overdetermined System)**:
+   - For CMM B, the plate's manufacturing deviations $(\Delta u_i, \Delta v_i)$ for the 4 corners are now **known constant inputs**, not variables.
+   - The unknown variables we need to solve for CMM B are:
+     - Scale errors ($s_{x,B}, s_{y,B}$): $2$ variables.
+     - Squareness error ($\alpha_B$): $1$ variable.
+     - Fixturing alignment parameters ($T_{x,B}, T_{y,B}, \theta_B$): $3$ variables.
+     - **Total unknown parameters** = $\mathbf{6}$ variables.
+   - Measuring the 4 corners on CMM B provides X and Y coordinate measurements: $4 \times 2 = \mathbf{8}$ equations.
+   - Since we have **8 equations to solve for 6 variables**, the system is overdetermined with **2 degrees of freedom of redundancy**. We can solve it uniquely using linear least-squares.
+
+2. **Advantages of a 4-Point Health Check**:
+   - **Extreme Speed**: Measuring 4 holes takes less than a minute. This provides a very fast verification routine to check if CMM B requires physical alignment.
+   - **Maximum Lever Arm**: The 4 corners span the maximum dimensions of the plate ($500 \times 550$ mm), which maximizes sensitivity to linear scale and squareness errors.
+
+3. **Limitations and Metrological Trade-offs**:
+   - **Noise Propagation**: With only 2 degrees of freedom of redundancy, random measurement noise (e.g., CMM B's $\sigma \approx 0.63\ \mu$m probe repeatability) will propagate more strongly. The scale uncertainty will be:
+     $$\sigma_s \approx \frac{\sqrt{2} \cdot \sigma_{noise}}{\text{Baseline}} \approx \frac{1.414 \cdot 0.63\ \mu\text{m}}{500\text{ mm}} \approx 1.8\text{ ppm}$$
+     This is larger than CMM A's calibration, but still perfectly adequate for detecting if CMM B is out of standard tolerance (e.g., if scale error exceeds $\pm 5$ ppm or squareness exceeds $\pm 5\ \mu$rad).
+   - **Vulnerability to Dust / Damage**: If any of the 4 corner holes is contaminated by dust, oil, or a local scratch, the resulting bias will severely distort the CMM B calibration.
+   - **Invisibility of Guideway Waviness**: The 4-point check assumes CMM B has perfectly linear guideways. Any localized pitch, yaw, roll, or guideway bending between the corners will be invisible or incorrectly modeled as global scale/squareness errors.
+
+---
 
 ## 8. Diagnostic Figures
 
