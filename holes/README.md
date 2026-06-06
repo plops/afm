@@ -120,3 +120,51 @@ Applying this calibration reduced the coordinate mismatch between the unrotated 
 
 ### Vector Field & Mismatch Analysis (`panel1Top1`)
 ![CMM Drift and Deviations](cmm_drift_and_deviations.png)
+
+---
+
+## 7. Error Estimation & Parameter Interdependencies
+
+To evaluate the precision of our calibrated physical coordinates and CMM parameters, we performed **Residual Bootstrapping** over $B=50$ runs. In each iteration, we resampled the residuals of our global fit (measurement noise $\sigma \approx 0.63\ \mu$m) with replacement and refit the global linear system.
+
+### 7.1 Parameter Standard Errors (1-Sigma Confidence)
+- **X scale error ($s_x$):** $28.6695 \pm 0.1256$ ppm
+- **Y scale error ($s_y$):** $1.5939 \pm 0.1946$ ppm
+- **Squareness error ($\alpha$):** $17.3279 \pm 0.8229\ \mu$rad
+
+These values prove that the CMM geometric errors are determined with exceptionally high precision (errors of $<0.2$ ppm for scale and $<0.85\ \mu$rad for squareness).
+
+### 7.2 Parameter Interdependency (Correlation Matrix)
+The bootstrap run revealed the following correlation coefficients:
+
+| Parameter | $s_x$ | $s_y$ | $\alpha$ |
+| :--- | :---: | :---: | :---: |
+| **$s_x$** | 1.000 | 0.583 | 0.182 |
+| **$s_y$** | 0.583 | 1.000 | **0.797** |
+| **$\alpha$** | 0.182 | **0.797** | 1.000 |
+
+> [!IMPORTANT]
+> The **high correlation of $0.80$** between Y-scale ($s_y$) and squareness ($\alpha$) highlights a strong multivariate interdependency. In the rotated coordinate equations, $s_y$ and $\alpha$ are coupled through the alignment rotation angles ($\theta_1, \theta_2$). Despite this coupling, the global combination of unrotated and rotated measurements is strong enough to cleanly isolate both parameters with very small uncertainties.
+
+### 7.3 Coordinate Uncertainty (2D Spatial Map)
+The standard error of the calibrated true physical coordinate deviations ($\Delta u, \Delta v$) is extremely low and uniform across the plate:
+- **Average standard error in $u$**: **$0.12\ \mu$m**
+- **Average standard error in $v$**: **$0.13\ \mu$m**
+
+The uncertainty is uniform across the entire surface of the plate, indicating that the self-calibration remains highly stable even near the edges and corners.
+
+### Bootstrap Parameter Distributions
+![Bootstrap Parameter Distributions](cmm_bootstrap_distributions.png)
+
+### 2D Spatial Coordinate Uncertainty Map
+![2D Coordinate Uncertainty Map](coordinate_uncertainty_map.png)
+
+---
+
+## 8. Python Analysis Scripts
+
+All data analysis was executed using the scripts in the [scripts/](scripts/) directory:
+
+1. **[scripts/process_data.py](scripts/process_data.py)**: Aligns and structures the unrotated and rotated CSV files into a single netCDF dataset (`processed_drill_data.nc`).
+2. **[scripts/fit_global_and_plot.py](scripts/fit_global_and_plot.py)**: Performs the global self-calibration, outputs the calibration results and corrected coordinates, and generates the vector plots.
+3. **[scripts/error_estimation.py](scripts/error_estimation.py)**: Performs the residual bootstrapping, computes standard errors and parameter correlations, and plots the uncertainty distributions.
