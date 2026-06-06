@@ -39,12 +39,12 @@ The core principle of self-calibration lies in coordinate transformation symmetr
 
 ```mermaid
 graph TD
-    subgraph Unrotated Run
+    subgraph unrot ["Unrotated Run"]
         direction TB
         U_unrot["Plate Axis u (0 to 500 mm)"] --> CMM_X["CMM X-Axis"]
         V_unrot["Plate Axis v (0 to 550 mm)"] --> CMM_Y["CMM Y-Axis"]
     end
-    subgraph Rotated Run (90° CW)
+    subgraph rot ["Rotated Run (90° CW)"]
         direction TB
         V_rot["Plate Axis v (0 to 550 mm)"] --> CMM_X_rot["CMM X-Axis"]
         U_rot["Plate Axis u (0 to 500 mm)"] --> CMM_Y_rot["CMM -Y-Axis (Offset 500 mm)"]
@@ -53,8 +53,8 @@ graph TD
 
 By correlating the physical hole diameters—which are invariant to measurement orientation—we mathematically established the exact index mapping:
 
-$$\text{Y\_Coordinate}_{\text{rot}} = 42 - \text{X\_Coordinate}_{\text{unrot}}$$
-$$\text{X\_Coordinate}_{\text{rot}} = \text{Y\_Coordinate}_{\text{unrot}}$$
+$$\text{IndexY}_{\text{rot}} = 42 - \text{IndexX}_{\text{unrot}}$$
+$$\text{IndexX}_{\text{rot}} = \text{IndexY}_{\text{unrot}}$$
 
 This corresponds to the physical mapping:
 - $X_{CMM, rot} = v$
