@@ -1,0 +1,27 @@
+# Exclude raw data formats
+*.xlsx
+*.csv
+*.nc
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+env/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Editors & backups
+*~
+*.swp
+*.swo
+.DS_Store
+
+# Local/scratch files
+output.txt
+prompt.txt
+holes/prompt.txt
+/start
