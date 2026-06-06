@@ -273,8 +273,67 @@ To verify or calibrate a second machine (CMM B) using this file as a transfer st
    $$\Delta Y_B = s_{y,B} \cdot Y_{nom} + (\theta_B + \alpha_B) \cdot X_{nom} + T_{y,B}$$
    This allows you to verify if CMM B requires guide-rail or controller alignment without needing a laser tracker.
 
----
+#### 7.5.3 Python Implementation of the 4-Corner Fit
+Here is a self-contained Python example showing how to extract the corners from the calibrated CSV and fit CMM B's scale and squareness errors using standard linear algebra:
 
+```python
+import numpy as np
+import pandas as pd
+
+# 1. Load the calibrated transfer standard coordinates
+df = pd.read_csv("holes/calibrated_transfer_standard.csv")
+
+# 2. Extract the 4 corner holes (by nominal grid coordinates)
+# Corners: (0, 0), (500, 0), (0, 550), (500, 550) mm
+corner_indices = [0, 40, 902, 942]
+corners = df.iloc[corner_indices]
+
+u_nom = corners['u_nominal_mm'].values
+v_nom = corners['v_nominal_mm'].values
+u_cal = corners['u_calibrated_mm'].values
+v_cal = corners['v_calibrated_mm'].values
+
+# 3. Measured coordinates on CMM B (simulated here with errors + noise)
+# Suppose CMM B has scale errors sx = 10 ppm, sy = 5 ppm, squareness alpha = -8 urad,
+# alignment rotation theta = 1.2 mrad, Tx = 5 mm, Ty = -3 mm, and 0.5 um measurement noise.
+np.random.seed(42)
+noise_u = np.random.normal(0, 0.5e-3, 4)
+noise_v = np.random.normal(0, 0.5e-3, 4)
+
+X_meas = u_cal + 10e-6 * u_nom - 1.2e-3 * v_nom + 5.0 + noise_u
+Y_meas = v_cal + 5e-6 * v_nom + (1.2e-3 - 8e-6) * u_nom - 3.0 + noise_v
+
+# 4. Deviations from the calibrated true coordinates
+dx = X_meas - u_cal
+dy = Y_meas - v_cal
+
+# 5. Build least-squares design matrix M (8 equations, 6 parameters)
+# Parameter vector: p = [s_x, s_y, alpha, theta, T_x, T_y]
+M = []
+d = []
+for i in range(4):
+    u, v = u_nom[i], v_nom[i]
+    M.append([u, 0, 0, -v, 1, 0])  # dx_i equation
+    d.append(dx[i])
+    M.append([0, v, u, u, 0, 1])   # dy_i equation
+    d.append(dy[i])
+
+M = np.array(M)
+d = np.array(d)
+
+# 6. Solve for parameters using least-squares
+p, residuals, rank, s = np.linalg.lstsq(M, d, rcond=None)
+
+# 7. Print CMM B calibration results
+print("--- CMM B Calibration Results ---")
+print(f"X scale error (s_x):      {p[0]*1e6:8.2f} ppm")
+print(f"Y scale error (s_y):      {p[1]*1e6:8.2f} ppm")
+print(f"Squareness error (alpha): {p[2]*1e6:8.2f} urad")
+print(f"Fixturing rotation (theta): {p[3]*1e3:8.2f} mrad")
+print(f"Translations (Tx, Ty):    {p[4]:8.2f} mm, {p[5]:8.2f} mm")
+```
+
+---
 
 ## 8. Diagnostic Figures
 
