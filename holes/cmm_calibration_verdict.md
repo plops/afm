@@ -61,3 +61,25 @@ A CMM has **21 parametric geometric errors** (3 positioning errors, 6 straightne
 - The 21 measured error components are processed by calibration software to generate a **CAA correction table**.
 - The technician uploads this CAA table to the CMM controller (e.g., Hexagon UCC, Zeiss, or Renishaw controller).
 - The controller automatically applies real-time vector corrections to the axis scales during measurement.
+
+---
+
+## 4. Root Causes of CMM Calibration Errors
+
+Geometric errors (specifically the scale mismatch and axis non-perpendicularity observed here) generally stem from several physical and mechanical factors:
+
+1. **Mechanical wear of guide rails**: Over years of operation, the linear guide rails and contact bearings wear down asymmetrically. This introduces pitch, yaw, and roll errors which project into coordinate offsets during travel.
+2. **Foundation settling and frame twisting**: CMM granite tables are extremely heavy. Over time, the floor foundation beneath the machine can settle or shift slightly. This shifts the CMM's isolation mounts, warping the granite bed and throwing the X and Y axes out of perpendicularity.
+3. **Thermal mismatch and scale slippage**: CMM coordinate positions are tracked using optical linear encoder scales (reflective metal tape or glass). If the adhesive holding the scales degrades, the scale can undergo microscopic slippage. Additionally, if the thermal expansion coefficient (CTE) of the scales is not correctly configured in the CMM controller, any temperature deviation from the standard $20^\circ\text{C}$ will project as a linear scaling error (ppm).
+4. **Mechanical shock and collisions**: Minor bump accidents (e.g., collision of the probe head or spindle with workpieces, clamping fixtures, or the granite bed) can shift the mechanical alignment or slip the encoders, instantly introducing squareness errors.
+
+---
+
+## 5. Machine Degradation and Aging Over Time
+
+Precision coordinate measuring machines degrade over time. This is why periodic calibration and reverification are required:
+
+1. **Material and stress relaxation**: Over long periods, cast iron and granite components undergo microscopic relaxation of internal manufacturing stresses, resulting in permanent dimensional changes (aging).
+2. **Air bearing and pneumatic wear**: CMM air bearings ride on a micro-thin layer of compressed air. Any oil, moisture, or particulate contamination in the compressed air supply degrades the bearing surface, introducing guide path straightness errors.
+3. **Optoelectronic sensor decay**: The light sources (LEDs) and photo-receivers in the encoder reader heads lose intensity and drift electrically over time. This increases interpolation noise and reading errors.
+4. **CAA map corruption or loss**: It is common for a CMM's physical geometry to remain stable, but the controller's internal CAA compensation map is lost, corrupted, or disabled during software updates, PC crashes, or hardware replacements, causing the machine to revert to its raw, uncalibrated mechanical state.
