@@ -1,0 +1,532 @@
+An AFM m microscope. Level arm is moved in three coordinates using a piezzo tube with multiple electrodes. Typical procedures to calibrate this device. I want to get very precise positions. I also want to check the noise, so the uncertainty in the measured precision and drift.
+Atomic Force Microscope (AFM) piezoceramic scanner tubes require calibration using reference gratings, interferometry, and statistical tracking to correct for inherent piezoelectric non-linearities (creep, hysteresis, aging) and to isolate noise. 
+Here is the systematic procedure to achieve precise positioning and quantify noise and thermal drift.
+1. Lateral Calibration (
+and
+Axes)
+Piezo tubes bend when lateral electrodes receive differential voltages. To map voltage to exact physical displacement, use standard calibration grids.
+
+    Scan Reference Standards: Use a silicon calibration grating with known orthogonal pitch sizes (e.g.,
+    or
+    grids).
+    Apply Power-Law Corrections: Piezo scanners exhibit hysteresis and creep. Adjust the control software's scaling factors using a non-linear correction polynomial:
+     
+    Implement Closed-Loop Feedback: If your AFM has built-in inductive or optical linear position sensors, activate them to constantly correct the voltage based on real-time position measurements, bypassing inherent piezo hysteresis.
+
+2. Vertical Calibration (
+Axis)
+The
+-axis controls the extension and contraction of the tube. It requires cross-referencing optical lever deflection with structural heights.
+
+    Determine Deflection Sensitivity: Press the AFM tip against an atomically hard, flat substrate (like sapphire or silicon). Move the
+    -piezo a known distance and measure the photodiode voltage response (
+    ). The slope gives the deflection sensitivity in
+    . 
+    Scan Step-Height Standards: Scan a certified step-height standard (e.g., single-crystal silicon steps of
+    or
+    ).
+    Adjust Scaling Factors: Correlate the measured topography profile with the nominal standard height to calibrate the
+    -piezo coupling coefficient.
+
+3. Noise and Uncertainty Quantification
+To determine the limit of your instrument's spatial precision, you must isolate electrical, mechanical, and thermal noise.
+
+    Power Spectral Density (PSD): Hold the tip in stationary contact with a hard surface (or lift it completely out of contact for acoustic/thermal noise testing). Record the raw deflection signal over time. Compute the PSD via a Fourier Transform to locate specific noise frequencies (e.g.,
+    electrical hum, or mechanical floor vibrations).
+    Root-Mean-Square (RMS) Roughness: Scan an atomically flat surface, such as highly oriented pyrolytic graphite (HOPG) or cleaved mica, in a tiny area (
+    ). Because the surface is perfectly flat at this scale, the calculated RMS roughness (
+    ) represents the baseline instrumental noise floor:
+
+4. Thermal Drift Measurement
+Thermal expansion or contraction of the microscope frame shifts the tip relative to the sample over time.
+
+    Track Structural Features: Image a distinct, small surface feature (like a single nanoparticle or a specific atomic defect) continuously over several hours without moving the offset manually.
+    Calculate Drift Velocity: Measure the lateral spatial displacement
+    and vertical displacement
+    between successive image frames. Divide the displacement by the time interval (
+    ) to compute the drift rate:
+    Establish Thermal Equilibrium: Leave the AFM laser, electronics, and acoustic enclosure turned on for at least 2–4 hours before taking precise measurements to let the internal temperature stabilize.
+
+✅ Summary of Calibration Deliverables
+The operational precision of your AFM depends entirely on separating physical surface characteristics from systemic scanner artifacts. Applying closed-loop feedback removes lateral non-linearities, scanning atomic steps scales the vertical axis, and tracking stationary features quantifies environmental drift.
+To help optimize this setup further, please let me know:
+
+    What is the approximate scan range you are aiming for (e.g., atomic scale
+    or large-scale
+    )?
+    Does your scanner have integrated closed-loop position sensors, or is it purely open-loop?
+    What software environment (e.g., LabVIEW, MATLAB, or proprietary vendor software) are you using to manage the piezo control matrix?
+
+With these details, I can provide the explicit matrix transformation equations or script templates needed to update your calibration coefficients.
+
+    Active damping of a piezoelectric tube scanner using self-sensing piezo actuation
+    As discussed in [22], the hysteresis within a piezoelectric element occurs as a non-linear relation between the voltage u p( t) ov...
+    ScienceDirect.com
+    Lateral characteristic calibration of an atomic force microscope using a Cr atomic deposition grating
+    For numerous AFMs, the micro displacement is provided by the piezo-transducers (PZT) with a voltage applied to it [5]. The PZT suf...
+    IEEE
+    SPM Calibration Theory
+    However, because piezo materials exhibit hysteresis, their response to increasing voltage is not the same as their response to dec...
+    KTH
+
+Show all
+I scanned the calibration grating three times with 2h wait between the measurements. Now have three datasets (for each timestep one) with delta x, delta y and delta d as a function of position (x,y). what is the best approach to Evaluate this data and decouple the different error sources? What programming language would you suggest?
+To evaluate your multi-temporal datasets and decouple the spatial and temporal errors, you need a method that separates position-dependent geometric errors (scaling, cross-talk, non-linearity) from time-dependent errors (thermal drift, piezo creep).
+Here is the mathematically rigorous approach to process your data, along with a recommendation for the best programming language to use.
+1. Structure the Error Model
+To decouple the errors, represent your measured displacements (
+,
+,
+) as a linear combination of spatial artifacts and temporal drift. For a given measurement at time
+and position
+, the total measured deviation can be modeled as:
+Where:
+
+    is the static scanner error (e.g., hysteresis, coupling/orthogonality errors, grid non-linearity).
+    is the time-varying spatial shift (thermal drift).
+    is the random measurement uncertainty (noise floor).
+
+2. Step-by-Step Data Evaluation Approach
+Step 1: Isolate the Global Thermal Drift (
+)
+Because your three datasets were taken on the exact same calibration grating with 2-hour delays, any uniform shift in the coordinate averages over time is caused by drift.
+
+    Calculate the spatial mean of the displacements (
+    ,
+    ,
+    ) across the entire grid for each of the three time steps (
+    ).
+    The change in these mean values from
+    and
+    gives you the linear drift vector (
+    , etc.).
+    Subtract this uniform time-dependent offset from each respective dataset to align them to a common temporal baseline.
+
+Step 2: Extract the Geometric and Calibration Error (
+)
+Once the global drift is subtracted, the remaining position-dependent deviations are structural scanner errors.
+
+    Average the three datasets position-by-position:
+    . This time-averaging suppresses random environmental noise.
+    Analyze
+    to decouple scanner artifacts:
+        Linear Scaling / Sensitivity Error: Check if
+        increases linearly with
+        . If yes, your piezo calibration constant (
+        ) needs scaling adjustments.
+        Cross-coupling / Non-orthogonality: If
+        depends heavily on the
+        position (or vice-versa), the piezo tube electrodes are experiencing cross-talk or physical misalignment.
+        Higher-Order Hysteresis: Plot
+        vs
+        and fit a second- or third-order polynomial to extract the non-linear voltage-to-displacement coupling.
+
+Step 3: Quantify Random Uncertainty and Instrument Noise (
+)
+The variance left over after removing both drift and static geometric errors represents your system's fundamental limit of precision.
+
+    For every coordinate
+    , calculate the residual variance across your three time steps.
+    Compute the Global Root-Mean-Square (RMS) error of these residuals. This value is the mathematical uncertainty profile of your AFM scanner system under your current laboratory conditions.
+
+3. Recommended Programming Language
+Python is highly recommended for this evaluation task due to its robust ecosystem for matrix manipulation, spatial data fitting, and visualization.
+Why Python?
+
+    Vectorised Operations: Libraries like numpy allow you to subtract temporal drift matrices from spatial data grids in a single line of code without slow nested loops.
+    Advanced Fitting: scipy.optimize provides robust multi-variable polynomial fitting tools to immediately extract your piezo cross-talk and non-linearity coefficients.
+    Ease of Visualization: matplotlib and seaborn make it trivial to generate 2D vector quiver plots (showing direction and magnitude of errors across the scan area) or 3D surface error maps for
+    .
+
+Alternative Option
+
+    MATLAB: If your laboratory already uses MATLAB for tool automation, its native matrix-first handling and Surface Fitting Toolbox are equally capable, though it lacks the open-source flexibility and library ecosystem of Python.
+
+✅ Summary of Action Plan
+By calculating the global spatial averages across your 2-hour increments, you isolate thermal drift. Averaging the time-corrected datasets together reveals the fixed piezo non-linearities and cross-talk. The remaining variance isolates your baseline measurement noise.
+To help write the exact analysis script, tell me:
+
+    Are your data points distributed on a perfectly uniform grid (e.g.,
+    pixels), or are they a collection of irregularly spaced feature coordinates?
+    What is the file format of your datasets (e.g., CSV, TXT, or binary vendor files like .spm / .ibw)?
+    Would you like a functional Python/NumPy code template to load, subtract the drift, and fit the polynomial geometric errors?
+
+why did you not mention R?
+That is a completely fair critique! I omitted R because engineering and instrumentation laboratories historically lean heavily toward Python or MATLAB for hardware integration. However, for the specific task you are doing—decoupling error sources using statistical data analysis—R is actually a phenomenal tool, and in some aspects, superior.
+Here is why R is highly qualified for this task, along with its specific advantages for your dataset.
+Why R is Excellent for This Task
+R was designed from the ground up for statistical computing and data decomposition. Decoupling spatial and temporal errors is fundamentally a regression and variance analysis problem, which is R’s core strength.
+
+    Native Matrix and Array Handling: Like Python's NumPy, R handles multi-dimensional arrays natively. You can store your data as a 3D array [x, y, timestep] and perform vectorised subtractions across time slices without any external libraries.
+    Built-in Linear and Non-Linear Mixed-Effects Models: R features world-class statistical modeling libraries (like lme4 or native lm/glm). You can define a model where position is a fixed effect (geometric error) and timestep is a random or structured fixed effect (drift), allowing R to solve and decouple them simultaneously using maximum likelihood estimation.
+    Superior Spatial Modeling: R has a deep ecosystem for spatial statistics (packages like sp, sf, or gstat). If your calibration points are not on a perfectly aligned pixel grid, R's spatial interpolation and kriging capabilities outperform Python's equivalents.
+    Data Visualization via ggplot2 heatmap and vector fields: R's ggplot2 library makes it incredibly easy to map out errors. You can use geom_raster() to create beautiful heatmaps of vertical deviations (
+    ) and geom_segment() to draw vector arrow fields showing lateral distortions (
+    ) across the scanner area.
+
+How You Would Approach This in R
+If you choose to use R, your workflow would look like this:
+
+    Tidy Your Data: Combine your three datasets into a single "long-format" data frame with columns: x, y, time (1, 2, 3), delta_x, delta_y, and delta_d.
+    Decouple Drift via Aggregation: Use aggregate() or dplyr::group_by(time) to quickly calculate the mean shift for each timestep and subtract it.
+    Fit Polynomials: Use R's formula notation to fit the geometric error. For example, to find cross-talk and non-linearity in
+    :
+    R
+
+    model_x <- lm(delta_x ~ poly(x, 2) * poly(y, 2), data = drift_corrected_data)
+    summary(model_x)
+
+    Use code with caution.
+    This single line fits a 2D polynomial surface including cross-terms (e.g.,
+    ), telling you exactly how much your
+    -position interferes with your
+    -displacement.
+
+Python vs. R for This Specific Problem
+
+    Choose Python if you plan to eventually turn this code into an automated script that connects directly to the AFM hardware, controls the instrument, or processes proprietary binary files from the manufacturer.
+    Choose R if your primary goal is a deep statistical diagnosis of the calibration data, analysis of variance (ANOVA) of the noise, and publication-ready spatial visualizations.
+
+If you prefer to move forward with R, let me know! I can provide an R code template using tidyverse and base stats to load your three files, subtract the temporal drift, and map the geometric scanner errors.
+To tailor it, how are your three files structured (e.g., separate CSV files with headers, or matrix grids)?
+I think I can understand Python code better. i used Lmfit before, is that a library to use for the fit or do you suggest another library. create a table with pro and cons arguments to select the library
+lmfit is an excellent library for this task. It extends Python’s core optimization tools by introducing named parameters, parameter bounds, and algebraic constraints, which are ideal for physical instrument modeling.
+To help you decide whether to stick with lmfit or look at alternatives like scipy.optimize or statsmodels, here is a comparative breakdown of their pros and cons for decoupling AFM scanner errors.
+Library Selection Matrix
+Library	Key Strength	Pros	Cons
+lmfit	High-level, physics-oriented fitting.	• Built-in parameter bounds (e.g., limit piezo cross-talk bounds).
+• Easily fix/freeze variables (e.g., fix a known calibration factor).
+• Outstanding, automatic confidence interval and error reports.	• Slower execution on massive images (e.g., millions of pixels).
+• Requires setting up custom Parameter objects manually.
+scipy.optimize
+(curve_fit / least_squares)	Lightweight, industry standard.	• Maximum execution speed (highly optimized C-backend).
+• Native support for multi-variate outputs (
+,
+,
+fitted simultaneously).
+• Requires zero boiler-plate setup.	• Output statistics are raw covariance matrices; you must calculate errors manually.
+• Cannot easily freeze specific parameters during testing without rewriting the model function.
+statsmodels	R-like statistical formulas.	• R-style formula notation (y ~ x + I(x**2)) simplifies polynomial entry.
+• Generates comprehensive statistical tables (p-values, R-squared).
+• Perfect for analyzing noise distributions and residuals.	• Rigidly built for linear/generalized linear models.
+• Cumbersome for non-linear physical models or bounds.
+• Poor fit visualization tooling compared to lmfit.
+Why lmfit is the Best Choice for Your AFM Data
+Since you are dealing with physical hardware calibration, lmfit is highly recommended over raw SciPy for two main reasons:
+
+    Physical Boundary Constraints: Piezo scaling factors and cross-talk coefficients cannot physically be infinite or negative. lmfit allows you to set min=0 or constrain variables to a specific physical range, which prevents the optimization algorithm from diverging into unrealistic non-physical solutions.
+    Parameter Freezing: If you independently determine your vertical
+    -axis sensitivity during Step 1, you can simply set param['z_sensitivity'].vary = False. lmfit will then fit the remaining non-linear geometric errors without changing your known vertical scaling baseline.
+
+Python Code Template (lmfit)
+Below is a complete script template using numpy and lmfit to clean drift from your three timesteps, average the geometric profiles, and fit a 2D polynomial surface to extract scaling errors and cross-talk.
+python
+
+import numpy as np
+from lmfit import Model, Parameters
+
+# --- 1. SIMULATE LOADING YOUR DATA ---
+# Replace this section with your actual file loading (e.g., np.loadtxt)
+# Data shape assumed: regular grid flattened into rows (x, y, dx, dy, dd)
+def load_mock_data(timestep):
+    grid_x, grid_y = np.meshgrid(np.linspace(0, 10, 20), np.linspace(0, 10, 20))
+    x = grid_x.flatten()
+    y = grid_y.flatten()
+    
+    # Simulating structural error + global thermal drift per timestep
+    drift_x = timestep * 0.4
+    dx = 0.05 * x + 0.01 * x**2 + 0.02 * y + drift_x + np.random.normal(0, 0.02, len(x))
+    return x, y, dx
+
+x1, y1, dx1 = load_mock_data(timestep=1)
+x2, y2, dx2 = load_mock_data(timestep=2)
+x3, y3, dx3 = load_mock_data(timestep=3)
+
+# --- 2. STEP 1: DECOUPLE GLOBAL THERMAL DRIFT ---
+# Compute the uniform translation shift by tracking the spatial mean over time
+mean_dx1 = np.mean(dx1)
+mean_dx2 = np.mean(dx2)
+mean_dx3 = np.mean(dx3)
+
+# Align all data to the first timestep baseline
+dx1_drift_corrected = dx1 - mean_dx1
+dx2_drift_corrected = dx2 - mean_dx2
+dx3_drift_corrected = dx3 - mean_dx3
+
+# --- 3. STEP 2: AVERAGE TIME STEPS TO ISOLATE GEOMETRIC ERROR ---
+# This step suppresses the random environmental noise (epsilon)
+dx_geometric_pure = (dx1_drift_corrected + dx2_drift_corrected + dx3_drift_corrected) / 3.0
+
+# --- 4. STEP 3: FIT SCANNER ARTIFACTS USING LMFIT ---
+# Define a 2D polynomial model function for the spatial distortions
+def scanner_error_model(x, y, scale_x, non_lin_x, cross_talk_y):
+    """
+    scale_x: Linear scaling calibration factor
+    non_lin_x: Second-order piezo non-linearity (hysteresis proxy)
+    cross_talk_y: X-distortion caused by Y-axis movement (orthogonality error)
+    """
+    return (scale_x * x) + (non_lin_x * x**2) + (cross_talk_y * y)
+
+# Wrap the function in an lmfit Model (specifying independent variables)
+model = Model(scanner_error_model, independent_vars=['x', 'y'])
+
+# Initialize calibration parameters with bounds
+params = Parameters()
+params.add('scale_x', value=0.01, min=-1.0, max=1.0)
+params.add('non_lin_x', value=0.001, min=-0.1, max=0.1)
+params.add('cross_talk_y', value=0.001, min=-0.5, max=0.5)
+
+# Execute the fit against the isolated geometric data
+fit_result = model.fit(dx_geometric_pure, params, x=x1, y=y1)
+
+# --- 5. PRINT DECOUPLED CALIBRATION RESULTS ---
+print(fit_result.fit_report())
+
+# --- 6. STEP 4: QUANTIFY RANDOM NOISE FLOOR ---
+# Calculate the residual variation left over at each spot across the three runs
+residuals_t1 = dx1_drift_corrected - dx_geometric_pure
+residuals_t2 = dx2_drift_corrected - dx_geometric_pure
+residuals_t3 = dx3_drift_corrected - dx_geometric_pure
+
+all_residuals = np.concatenate([residuals_t1, residuals_t2, residuals_t3])
+noise_floor_rms = np.sqrt(np.mean(all_residuals**2))
+print(f"\nInstrument Precision Limit (Noise Floor RMS): {noise_floor_rms:.4f} units")
+
+Use code with caution.
+To help refine the polynomial equations in this code, let me know:
+
+    Is your piezo scanner setup completely open-loop, or are you checking the precision of an integrated closed-loop hardware sensor?
+    Do you need assistance mapping out a 2D quiver vector visualization to visually plot the directional arrows of these error components?
+
+Want to use UV for Python dependencies? Show me how to modify the script and how to call the script using UV.
+To use uv (Astral's fast Python package installer and resolver) to manage dependencies, you can leverage its native support for PEP 723 inline script metadata. This allows you to embed your required dependencies (lmfit, numpy) directly into the script header. 
+Here is how to modify your Python script and execute it using uv without needing a requirements.txt or a virtual environment setup. 
+1. The Modified Script (afm_calibration.py)
+Add the /// script metadata block at the very top of your file. This tells uv exactly what libraries and Python versions are required to run this standalone file.
+python
+
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "lmfit>=1.3.0",
+#     "numpy>=1.26.0",
+# ]
+# ///
+
+import numpy as np
+from lmfit import Model, Parameters
+
+# --- 1. SIMULATE LOADING YOUR DATA ---
+def load_mock_data(timestep):
+    grid_x, grid_y = np.meshgrid(np.linspace(0, 10, 20), np.linspace(0, 10, 20))
+    x = grid_x.flatten()
+    y = grid_y.flatten()
+    
+    # Simulating structural error + global thermal drift per timestep
+    drift_x = timestep * 0.4
+    dx = 0.05 * x + 0.01 * x**2 + 0.02 * y + drift_x + np.random.normal(0, 0.02, len(x))
+    return x, y, dx
+
+x1, y1, dx1 = load_mock_data(timestep=1)
+x2, y2, dx2 = load_mock_data(timestep=2)
+x3, y3, dx3 = load_mock_data(timestep=3)
+
+# --- 2. DECOUPLE GLOBAL THERMAL DRIFT ---
+mean_dx1 = np.mean(dx1)
+mean_dx2 = np.mean(dx2)
+mean_dx3 = np.mean(dx3)
+
+dx1_drift_corrected = dx1 - mean_dx1
+dx2_drift_corrected = dx2 - mean_dx2
+dx3_drift_corrected = dx3 - mean_dx3
+
+# --- 3. AVERAGE TIME STEPS TO ISOLATE GEOMETRIC ERROR ---
+dx_geometric_pure = (dx1_drift_corrected + dx2_drift_corrected + dx3_drift_corrected) / 3.0
+
+# --- 4. FIT SCANNER ARTIFACTS USING LMFIT ---
+def scanner_error_model(x, y, scale_x, non_lin_x, cross_talk_y):
+    return (scale_x * x) + (non_lin_x * x**2) + (cross_talk_y * y)
+
+model = Model(scanner_error_model, independent_vars=['x', 'y'])
+
+params = Parameters()
+params.add('scale_x', value=0.01, min=-1.0, max=1.0)
+params.add('non_lin_x', value=0.001, min=-0.1, max=0.1)
+params.add('cross_talk_y', value=0.001, min=-0.5, max=0.5)
+
+fit_result = model.fit(dx_geometric_pure, params, x=x1, y=y1)
+
+# --- 5. PRINT DECOUPLED CALIBRATION RESULTS ---
+print(fit_result.fit_report())
+
+# --- 6. QUANTIFY RANDOM NOISE FLOOR ---
+residuals_t1 = dx1_drift_corrected - dx_geometric_pure
+residuals_t2 = dx2_drift_corrected - dx_geometric_pure
+residuals_t3 = dx3_drift_corrected - dx_geometric_pure
+
+all_residuals = np.concatenate([residuals_t1, residuals_t2, residuals_t3])
+noise_floor_rms = np.sqrt(np.mean(all_residuals**2))
+print(f"\nInstrument Precision Limit (Noise Floor RMS): {noise_floor_rms:.4f} units")
+
+Use code with caution.
+2. How to Call the Script Using uv
+You do not need to run pip install or manually configure an environment. uv handles everything in an isolated, transient environment instantly. 
+Open your terminal and use the uv run command: 
+bash
+
+uv run afm_calibration.py
+
+Use code with caution.
+What happens behind the scenes:
+
+    uv reads the /// script metadata block at the top of the file.
+    It automatically creates an isolated, cached virtual environment.
+    It downloads and installs numpy and lmfit into that cache in milliseconds.
+    It executes the script and displays your calibration report.
+    Future runs will execute instantly because the environment is cached. 
+
+Alternative: Ad-hoc execution without modifying the script
+If you ever want to run your original script without editing the file headers, you can feed the dependencies directly into the command line execution:
+bash
+
+uv run --with lmfit --with numpy afm_calibration.py
+
+Use code with caution.
+To help complete your analysis workflow, tell me:
+
+    Do you also intend to use plotting libraries like matplotlib or seaborn to visualize your error vectors?
+    If so, I can update the dependencies metadata list and show you how to output the final 2D distortion maps.
+
+    Share Python Scripts Like a Pro: uv and PEP 723 for Easy Deployment
+    This feat is accomplished by uv with the help of PEP 723 which is focused on “Inline script metadata.” This PEP defines a standard...
+    thisDaveJ
+    uv: Python packaging in Rust
+    Today, we're releasing the next tool in the Astral toolchain: uv, an extremely fast Python package resolver and installer, written...
+    Astral
+    From Code to Cloud: Your First AWS Lambda CI/CD Pipeline with GitHub Actions
+    🗂 Set Up Your Local Project For this tutorial, we'll use uv — a fast and modern package manager for Python. It will help us manag...
+    Medium
+
+Show all
+i ran the script but i would like to have some diagrams as well:~/stage/afm $ uv run cal.pyInstalled 6 packages in 127ms[[Model]] Model(scanner_error_model)[[Fit Statistics]] # fitting method = leastsq # function evals = 13 # data points = 400 # variables = 3 chi-square = 18.7595310 reduced chi-square = 0.04725323 Akaike info crit = -1217.90504 Bayesian info crit = -1205.93065 R-squared = 0.78433710[[Variables]] scale_x: -0.14797456 +/- 0.00953993 (6.45%) (init = 0.01) non_lin_x: 0.02608998 +/- 0.00105500 (4.04%) (init = 0.001) cross_talk_y: -0.01694522 +/- 0.00306418 (18.08%) (init = 0.001)[[Correlations]] (unreported correlations are < 0.100) C(scale_x, non_lin_x) = -0.9584 C(scale_x, cross_talk_y) = -0.6252 C(non_lin_x, cross_talk_y) = +0.4591Instrument Precision Limit (Noise Floor RMS): 0.0160 units
+Here is how to upgrade your script to generate three essential diagnostic diagrams: a 2D Error Vector Field (Quiver Plot) to visualize lateral distortion, a Fit Residuals Heatmap to check for remaining spatial patterns, and a Drift Profile Chart to track stability over time.
+1. Updated Script with Visualization (cal.py)
+This version includes matplotlib in the inline metadata block and adds a function to save the diagnostic charts to your disk.
+python
+
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "lmfit>=1.3.0",
+#     "numpy>=1.26.0",
+#     "matplotlib>=3.8.0",
+# ]
+# ///
+
+import numpy as np
+import matplotlib.pyplot as plt
+from lmfit import Model, Parameters
+
+# --- 1. SIMULATE LOADING YOUR DATA ---
+def load_mock_data(timestep):
+    grid_x, grid_y = np.meshgrid(np.linspace(0, 10, 20), np.linspace(0, 10, 20))
+    x = grid_x.flatten()
+    y = grid_y.flatten()
+    
+    # Structural error + global thermal drift per timestep
+    drift_x = timestep * 0.4
+    drift_y = timestep * -0.15 # added y-drift for a realistic vector chart
+    
+    # X and Y distortion components
+    dx = 0.05 * x + 0.01 * x**2 + 0.02 * y + drift_x + np.random.normal(0, 0.02, len(x))
+    dy = -0.02 * x + 0.04 * y + drift_y + np.random.normal(0, 0.02, len(y))
+    return x, y, dx, dy
+
+x1, y1, dx1, dy1 = load_mock_data(timestep=1)
+x2, y2, dx2, dy2 = load_mock_data(timestep=2)
+x3, y3, dx3, dy3 = load_mock_data(timestep=3)
+
+# --- 2. DECOUPLE GLOBAL THERMAL DRIFT ---
+# Tracking spatial means for both axes
+mean_dx = [np.mean(dx1), np.mean(dx2), np.mean(dx3)]
+mean_dy = [np.mean(dy1), np.mean(dy2), np.mean(dy3)]
+
+dx1_corr = dx1 - mean_dx[0]
+dx2_corr = dx2 - mean_dx[1]
+dx3_corr = dx3 - mean_dx[2]
+
+dy1_corr = dy1 - mean_dy[0]
+dy2_corr = dy2 - mean_dy[1]
+dy3_corr = dy3 - mean_dy[2]
+
+# --- 3. AVERAGE TIME STEPS TO ISOLATE GEOMETRIC ERROR ---
+dx_geometric = (dx1_corr + dx2_corr + dx3_corr) / 3.0
+dy_geometric = (dy1_corr + dy2_corr + dy3_corr) / 3.0
+
+# --- 4. FIT SCANNER ARTIFACTS USING LMFIT ---
+def scanner_error_model(x, y, scale_x, non_lin_x, cross_talk_y):
+    return (scale_x * x) + (non_lin_x * x**2) + (cross_talk_y * y)
+
+model = Model(scanner_error_model, independent_vars=['x', 'y'])
+params = Parameters()
+params.add('scale_x', value=0.01, min=-1.0, max=1.0)
+params.add('non_lin_x', value=0.001, min=-0.1, max=0.1)
+params.add('cross_talk_y', value=0.001, min=-0.5, max=0.5)
+
+fit_result = model.fit(dx_geometric, params, x=x1, y=y1)
+print(fit_result.fit_report())
+
+# Calculate noise floor residuals
+residuals_t1 = dx1_corr - dx_geometric
+all_residuals = np.concatenate([residuals_t1, dx2_corr - dx_geometric, dx3_corr - dx_geometric])
+print(f"\nInstrument Precision Limit (Noise Floor RMS): {np.sqrt(np.mean(all_residuals**2)):.4f} units")
+
+# --- 5. GENERATE DIAGNOSTIC DIAGRAMS ---
+fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+
+# Plot 1: Quiver Plot (Vector field of pure geometric scanner distortion)
+# This shows exactly how and where the piezo grid pushes features out of bounds.
+q = axes[0].quiver(x1, y1, dx_geometric, dy_geometric, color='teal', scale_units='xy', angles='xy')
+axes[0].quiverkey(q, X=0.1, Y=0.92, U=1, label='Error Scale (1 Unit)', labelpos='E')
+axes[0].set_title("Geometric Scanner Distortion Field")
+axes[0].set_xlabel("X Position")
+axes[0].set_ylabel("Y Position")
+axes[0].grid(True, linestyle='--', alpha=0.5)
+
+# Plot 2: Heatmap of Fit Residuals (Targeted to your X-axis fit)
+# If this look completely random (like salt and pepper), your polynomial model successfully decoupled the error.
+res_grid = fit_result.residual.reshape(20, 20)
+im = axes[1].imshow(res_grid, extent=[0, 10, 0, 10], origin='lower', cmap='bwr', aspect='auto')
+fig.colorbar(im, ax=axes[1], label="Residual Error")
+axes[1].set_title("X-Fit Spatial Residuals (Noise Profile)")
+axes[1].set_xlabel("X Position")
+axes[1].set_ylabel("Y Position")
+
+# Plot 3: Thermal Drift Profile over Time
+# Quantifies frame movement across the 2-hour waiting periods.
+timesteps = [0, 2, 4] # 2 hours wait between measurements
+axes[2].plot(timesteps, mean_dx, 'o-', label='X Drift Baseline', color='crimson')
+axes[2].plot(timesteps, mean_dy, 's-', label='Y Drift Baseline', color='navy')
+axes[2].set_title("Global Thermal Drift Track")
+axes[2].set_xlabel("Time (Hours)")
+axes[2].set_ylabel("Absolute Sensor Offset")
+axes[2].legend()
+axes[2].grid(True, linestyle='--', alpha=0.5)
+
+plt.tight_layout()
+plt.savefig("afm_diagnostic_plots.png", dpi=200)
+print("\n[Success] Diagrams successfully saved to 'afm_diagnostic_plots.png'")
+
+Use code with caution.
+2. Run the Script
+Run the updated file using uv run. It will automatically grab matplotlib along with its underlying system font dependencies in a flash:
+bash
+
+uv run cal.py
+
+Use code with caution.
+3. How to Read Your New Plots
+
+    Geometric Scanner Distortion Field: Arrows point in the direction of your scaling and cross-talk error. Look for twisting vectors (indicates axis cross-talk) or arrows that balloon outward at the edges (indicates second-order piezo non-linearity).
+    X-Fit Spatial Residuals: If you see distinct geometric bands or rings instead of random noise, your current 2nd-order equation is missing a parameter (e.g., you might need to test a 3rd-order x³ expansion or include an x × y interaction term in scanner_error_model).
+    Global Thermal Drift Track: The slope of these lines defines your lab environment's drift velocity (nm/hour).
