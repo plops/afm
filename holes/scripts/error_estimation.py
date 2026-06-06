@@ -177,15 +177,20 @@ se_dv = bootstrap_params[:, N:2*N].std(axis=0) * 1000 # um
 se_du_grid = se_du.reshape((23, 41))
 se_dv_grid = se_dv.reshape((23, 41))
 
-# Save outputs to CSV
-df_se = pd.DataFrame({
+# Save calibrated transfer standard coordinates to CSV
+df_transfer = pd.DataFrame({
+    'hole_index': np.arange(N),
     'u_nominal_mm': u_flat,
     'v_nominal_mm': v_flat,
+    'du_deviation_mm': x_sol[:N],
+    'dv_deviation_mm': x_sol[N:2*N],
+    'u_calibrated_mm': u_flat + x_sol[:N],
+    'v_calibrated_mm': v_flat + x_sol[N:2*N],
     'se_du_um': se_du,
     'se_dv_um': se_dv
 })
-df_se.to_csv("holes/calibrated_deviations_uncertainty.csv", index=False)
-print("\nSaved coordinate uncertainties to holes/calibrated_deviations_uncertainty.csv")
+df_transfer.to_csv("holes/calibrated_transfer_standard.csv", index=False)
+print("\nSaved calibrated transfer standard to holes/calibrated_transfer_standard.csv")
 
 # Plot 1: Bootstrap distributions of global CMM parameters
 fig, axes = plt.subplots(1, 3, figsize=(15, 5))

@@ -245,10 +245,36 @@ This transforms the plate into a **calibrated transfer standard**. We can indeed
    - **Noise Propagation**: With only 2 degrees of freedom of redundancy, random measurement noise (e.g., CMM B's $\sigma \approx 0.63\ \mu$m probe repeatability) will propagate more strongly. The scale uncertainty will be:
      $$\sigma_s \approx \frac{\sqrt{2} \cdot \sigma_{noise}}{\text{Baseline}} \approx \frac{1.414 \cdot 0.63\ \mu\text{m}}{500\text{ mm}} \approx 1.8\text{ ppm}$$
      This is larger than CMM A's calibration, but still perfectly adequate for detecting if CMM B is out of standard tolerance (e.g., if scale error exceeds $\pm 5$ ppm or squareness exceeds $\pm 5\ \mu$rad).
-   - **Vulnerability to Dust / Damage**: If any of the 4 corner holes is contaminated by dust, oil, or a local scratch, the resulting bias will severely distort the CMM B calibration.
-   - **Invisibility of Guideway Waviness**: The 4-point check assumes CMM B has perfectly linear guideways. Any localized pitch, yaw, roll, or guideway bending between the corners will be invisible or incorrectly modeled as global scale/squareness errors.
+    - **Vulnerability to Dust / Damage**: If any of the 4 corner holes is contaminated by dust, oil, or a local scratch, the resulting bias will severely distort the CMM B calibration.
+    - **Invisibility of Guideway Waviness**: The 4-point check assumes CMM B has perfectly linear guideways. Any localized pitch, yaw, roll, or guideway bending between the corners will be invisible or incorrectly modeled as global scale/squareness errors.
+
+### 7.5 Calibrated Transfer Standard File (`calibrated_transfer_standard.csv`)
+The CMM A calibration script outputs the complete calibrated reference plate coordinates in the file `holes/calibrated_transfer_standard.csv`.
+
+#### 7.5.1 Data Contents
+The CSV file contains the following columns for all 943 holes:
+- `hole_index`: A unique 0-indexed integer (0 to 942) identifying each physical hole.
+- `u_nominal_mm`, `v_nominal_mm`: The design nominal coordinates of the hole center on the grid (in millimeters).
+- `du_deviation_mm`, `dv_deviation_mm`: The true estimated manufacturing deviations ($\Delta u_i$, $\Delta v_i$, in millimeters) of the hole centers from nominal, resolved by the global self-calibration system.
+- `u_calibrated_mm`, `v_calibrated_mm`: The true, calibrated absolute coordinate positions of the hole centers ($u_i + \Delta u_i$, $v_i + \Delta v_i$, in millimeters) on the plate.
+- `se_du_um`, `se_dv_um`: The standard errors/uncertainties ($\sigma_{\Delta u}$, $\sigma_{\Delta v}$, in micrometers) computed via 50 bootstrap iterations.
+
+#### 7.5.2 Metrological Usage for Machine Recalibration / Verification
+To verify or calibrate a second machine (CMM B) using this file as a transfer standard:
+1. **Extract Reference Coordinates**: Query `holes/calibrated_transfer_standard.csv` to find the true calibrated coordinates (`u_calibrated_mm`, `v_calibrated_mm`) of the 4 corners:
+   - Hole 0 (nominal $0, 0$)
+   - Hole 40 (nominal $500, 0$)
+   - Hole 902 (nominal $0, 550$)
+   - Hole 942 (nominal $500, 550$)
+2. **Measure on CMM B**: Place the plate on the bed of CMM B and measure the center coordinates ($X_{meas}, Y_{meas}$) of these same 4 corner holes.
+3. **Rigid Body Alignment Fit**: Match the measured coordinates to the calibrated coordinates using a least-squares fit that solves for CMM B's fixturing translation offsets ($T_{x,B}, T_{y,B}$) and rotation ($\theta_B$).
+4. **Solve Scale and Squareness**: Solve the linear system for the residuals of the alignment to isolate CMM B's axis errors:
+   $$\Delta X_B = s_{x,B} \cdot X_{nom} - \theta_B \cdot Y_{nom} + T_{x,B}$$
+   $$\Delta Y_B = s_{y,B} \cdot Y_{nom} + (\theta_B + \alpha_B) \cdot X_{nom} + T_{y,B}$$
+   This allows you to verify if CMM B requires guide-rail or controller alignment without needing a laser tracker.
 
 ---
+
 
 ## 8. Diagnostic Figures
 
