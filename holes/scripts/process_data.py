@@ -1,3 +1,8 @@
+"""
+Purpose: Preprocess CMM grid hole measurements from raw CSV format, align
+coordinate grids, map rotated runs to physical coordinates, and save as netCDF.
+"""
+
 import pandas as pd
 import numpy as np
 import xarray as xr

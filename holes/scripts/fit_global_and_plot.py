@@ -1,3 +1,10 @@
+"""
+Purpose: Perform global sparse self-calibration (reversal method) to separate
+true physical hole deviations from CMM scaling, squareness, and drift errors.
+Generates diagnostic plots and saves calibrated coordinates.
+"""
+
+import xr = xr
 import xarray as xr
 import numpy as np
 import pandas as pd
