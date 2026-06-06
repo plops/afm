@@ -200,7 +200,30 @@ where $\phi_j(u,v)$ are 2D spline basis functions and $w_j$ are the weights.
 ### 7.2 Multi-Orientation Calibration (Reorientation)
 If we cannot measure many points, we can measure the *same* small subset of 30 holes in **three or four orientations** (e.g., 0°, 90°, 180°, and 270°). This increases the redundancy of the geometric constraints per hole, boosting the accuracy of the CMM scale and squareness parameters even with very minimal data.
 
+### 7.3 Extreme Case: Calibration with Only 4 Corner Holes
+If the measurement is restricted to only the 4 corner holes of the grid plate, the self-calibration model undergoes a severe mathematical and metrological breakdown:
+
+1. **Mathematical Underdetermination (Rank Deficiency)**:
+   - For $N=4$ holes, we must estimate their true physical coordinate deviations: $4 \times 2 = 8$ variables.
+   - We must solve for CMM scale and squareness parameters ($s_x, s_y, \alpha$): $3$ variables.
+   - For 2 runs (unrotated and rotated), we have fixturing alignment parameters ($T_x, T_y, \theta$ per run): $2 \times 3 = 6$ variables.
+   - **Total variables to solve** = $8 + 3 + 6 = 17$ variables.
+   - Measuring 4 holes in 2 runs yields 2 coordinates per hole per run: $2 \times 4 \times 2 = 16$ equations.
+   - Since we have **16 equations to solve for 17 variables**, the system is rank-deficient and mathematically **underdetermined**. It is impossible to solve this system uniquely without importing external calibration data or making arbitrary assumptions (such as assuming the plate has zero manufacturing error).
+
+2. **Total Loss of Redundancy and Noise Filtering**:
+   - In a 943-hole grid, the least-squares solver averages out the probe's random measurement noise ($\sigma \approx 0.63\ \mu$m) across thousands of degrees of freedom. 
+   - With only 4 holes, there is zero redundancy. A single microscopic speck of dust, local surface roughness, or a $1\ \mu$m probe pre-travel variation at one corner will propagate directly into the parameters, leading to massive errors in CMM scale ($\approx 2$ ppm) or squareness ($\approx 2\ \mu$rad).
+
+3. **Inability to Model Thermal Drift and Guideway Waviness**:
+   - Time-dependent linear drift ($c_x, c_y$) cannot be resolved. Any thermal drift occurring during the run will be falsely projected as axis scale or squareness errors.
+   - High-frequency guide-rail errors (e.g., local carriage pitch/yaw/roll or guideway waviness) are completely invisible, as we only sample at the extreme ends of travel.
+
+4. **The Baseline Advantage (If Plate is Pre-Calibrated)**:
+   - The only benefit of the corners is that they maximize the spatial baseline ($L_x = 500$ mm, $L_y = 550$ mm), which maximizes sensitivity to linear scale and squareness errors. If the plate's manufacturing errors were *already calibrated* ($\Delta u_i, \Delta v_i = 0$), 4 points would be sufficient to calibrate the CMM. Under a *self-calibration* framework, however, it is mathematically invalid.
+
 ---
+
 
 ## 8. Diagnostic Figures
 
