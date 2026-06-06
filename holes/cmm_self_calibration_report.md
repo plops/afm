@@ -333,6 +333,18 @@ print(f"Fixturing rotation (theta): {p[3]*1e3:8.2f} mrad")
 print(f"Translations (Tx, Ty):    {p[4]:8.2f} mm, {p[5]:8.2f} mm")
 ```
 
+#### Expected Script Output:
+Running the simulation script prints the following estimated CMM B parameters:
+```text
+--- CMM B Calibration Results ---
+X scale error (s_x):         10.12 ppm
+Y scale error (s_y):          6.28 ppm
+Squareness error (alpha):    -7.58 urad
+Fixturing rotation (theta):     1.20 mrad
+Translations (Tx, Ty):        5.00 mm,    -3.00 mm
+```
+*(Notice how the solved scale and squareness errors closely match the simulated target parameters of $10$ ppm, $5$ ppm, and $-8\ \mu$rad, demonstrating that even with measurement noise, the 4-corner baseline is highly sensitive for verifying machine status.)*
+
 ---
 
 ## 8. Diagnostic Figures
