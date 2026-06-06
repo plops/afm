@@ -1,0 +1,24 @@
+[[Model]]
+    Model(scanner_error_model)
+[[Fit Statistics]]
+    # fitting method   = leastsq
+    # function evals   = 13
+    # data points      = 400
+    # variables        = 3
+    chi-square         = 18.8404790
+    reduced chi-square = 0.04745713
+    Akaike info crit   = -1216.18274
+    Bayesian info crit = -1204.20835
+    R-squared          = 0.78347800
+[[Variables]]
+    scale_x:      -0.14799258 +/- 0.00956049 (6.46%) (init = 0.01)
+    non_lin_x:     0.02608625 +/- 0.00105727 (4.05%) (init = 0.001)
+    cross_talk_y: -0.01687188 +/- 0.00307078 (18.20%) (init = 0.001)
+[[Correlations]] (unreported correlations are < 0.100)
+    C(scale_x, non_lin_x)      = -0.9584
+    C(scale_x, cross_talk_y)   = -0.6252
+    C(non_lin_x, cross_talk_y) = +0.4591
+
+Instrument Precision Limit (Noise Floor RMS): 0.0163 units
+
+[Success] Diagrams successfully saved to 'afm_diagnostic_plots.png'
