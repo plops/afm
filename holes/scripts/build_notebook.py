@@ -110,6 +110,18 @@ add_md("""
 ## 2. Data Ingestion & Grid Alignment
 
 We read the raw CSV files, partition them into the 8 blocks, and align the coordinates. The unrotated and rotated runs are mapped into a unified coordinate system and stored in an `xarray` dataset.
+
+### 2.1 Extraction of Measurement Timestamps
+To model the CMM's time-dependent thermal drift ($c_x, c_y$), we require precise timestamps for each coordinate measurement. The CMM software records the date and time of each probe contact within the raw CSV files:
+* **Unrotated Data (`DrillData.csv`)**:
+  - The date is recorded in column 15 (`Unnamed: 15`), and the time (with millisecond resolution) is in column 14 (`Unnamed: 14`).
+  - These two fields are combined for the X-axis coordinate row of each hole.
+* **Rotated Data (`DrillRot90_2.csv`)**:
+  - The date is extracted from the first part of column 14 (`Unnamed: 14`), and the time is recorded in column 13 (`Unnamed: 13`).
+
+These concatenated date-time strings are parsed into standard `numpy.datetime64` timestamps. To compute the elapsed time $t$ used in the linear drift equations, we subtract the start time of each individual block (run):
+$$t_i = \\text{Timestamp}_i - \\text{Timestamp}_{\\min}$$
+This converts the timestamps into elapsed seconds from the start of the respective run.
 """)
 
 add_code("""
