@@ -122,6 +122,12 @@ To model the CMM's time-dependent thermal drift ($c_x, c_y$), we require precise
 These concatenated date-time strings are parsed into standard `numpy.datetime64` timestamps. To compute the elapsed time $t$ used in the linear drift equations, we subtract the start time of each individual block (run):
 $$t_i = \\text{Timestamp}_i - \\text{Timestamp}_{\\min}$$
 This converts the timestamps into elapsed seconds from the start of the respective run.
+
+### 2.2 Invariance of Drift Rates to Time Origin (Absolute vs. Relative Drift)
+A common metrological question is whether subtracting the starting timestamp of each block prevents us from learning about the "absolute drift" of the CMM:
+1. **Drift Rate Invariance (Slope vs. Intercept)**: The drift rate parameters ($c_x, c_y$) represent the temporal *slope* (coordinate deviation change per unit time, e.g., mm/hr). Mathematically, the slope of a linear trend is invariant to shift transformations of the independent variable. Subtracting a constant starting time $\\text{Timestamp}_{\\min}$ merely shifts the time origin; it does not alter the rate of change.
+2. **Numerical Stability**: If we did not subtract the start time of each run, the independent time variable would be very large (e.g., elapsed seconds since the Unix epoch in 1970). This would force the least-squares solver to extrapolate the translation offsets ($T_x, T_y$) back to $t=0$, causing massive parameter coupling, numerical ill-conditioning, and loss of floating-point precision. Subtracting the minimum timestamp centers the time axis at the start of each run, ensuring that $T_x, T_y$ represent the actual physical alignment offsets at the start of the measurement.
+3. **Observing Inter-Run (Long-Term) Drift**: Subtracting the start time does not discard long-term drift information. Intra-run drift (within a single run) is captured by the run-specific rates $c_x, c_y$. Inter-run drift (slow changes in the machine's absolute reference point over the course of the day) is captured by comparing the fitted translation offsets ($T_{x1}, T_{y1}$) of the 8 blocks plotted against their respective absolute start times.
 """)
 
 add_code("""
