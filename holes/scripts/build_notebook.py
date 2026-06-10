@@ -603,7 +603,7 @@ plt.show()
 
 # --- 8. PLOT 2 ---
 add_md("""
-### 5.2 Vector Field of Deviations and Mismatch Histogram (`panel1Top1`)
+### 5.2 Vector Field of Deviations and True Plate Deviations (`panel1Top1`)
 We plot the vector field of coordinate deviations to visually confirm the alignment and calibration of the runs.
 
 #### Understanding the Vector Fields and "Deviations":
@@ -617,9 +617,7 @@ In the plots below:
 * **Raw Deviations: Unrotated Run** shows the raw deviations $\\Delta x_{\\text{unrot}}, \\Delta y_{\\text{unrot}}$ measured directly on CMM A.
 * **Raw Deviations: Rotated Run** shows the raw deviations after mathematically rotating the coordinate system to plate-fixed coordinates ($-\\Delta y_{\\text{rot}}, \\Delta x_{\\text{rot}}$).
 * **Estimated True Plate Deviations (Self-Calibrated)** shows the estimated physical deviations $(\\Delta u, \\Delta v)$ of the plate itself. These represent the plate's manufacturing errors, obtained by subtracting the CMM's scale, squareness, and drift errors from the unrotated measurements.
-* **Histogram of Measurement Mismatch** compares the coordinate mismatch between the unrotated and rotated runs before and after self-calibration. The mismatch is the vector difference:
-  $$\\text{Mismatch} = \\sqrt{(\\Delta u_{\\text{unrot, corrected}} - \\Delta u_{\\text{rot, corrected}})^2 + (\\Delta v_{\\text{unrot, corrected}} - \\Delta v_{\\text{rot, corrected}})^2}$$
-  The dramatic shift of the histogram to the left (mean mismatch dropping from $\\approx 6\\ \\mu$m to $\\approx 1.2\\ \\mu$m) proves that our calibration has successfully removed the systematic geometric and drift errors, leaving only the random repeatability noise of the CMM probe.
+* **Estimated True Plate Deviation Magnitude (Level Plot)** shows the spatial distribution of the plate's manufacturing errors. A larger magnitude (in micrometers) indicates a larger manufacturing error at that physical point.
 """)
 
 add_code("""
@@ -679,12 +677,13 @@ axes[1, 0].set_title("Estimated True Plate Deviations (Self-Calibrated)")
 axes[1, 0].set_xlabel("U Coordinate (mm)")
 axes[1, 0].set_ylabel("V Coordinate (mm)")
 
-axes[1, 1].hist(diff_before.flatten(), bins=30, alpha=0.5, label='Raw mismatch', color='#d95f02')
-axes[1, 1].hist(diff_after.flatten(), bins=30, alpha=0.5, label='Self-Calibrated mismatch', color='#1b9e77')
-axes[1, 1].set_xlabel("Mismatch between runs (um)")
-axes[1, 1].set_ylabel("Count")
-axes[1, 1].set_title("Histogram of Measurement Mismatch")
-axes[1, 1].legend()
+mag_true = np.sqrt(du_est**2 + dv_est**2) * 1000
+im_true = axes[1, 1].imshow(mag_true, origin='lower', extent=[u_vals.min(), u_vals.max(), v_vals.min(), v_vals.max()],
+                            cmap='plasma', aspect='auto')
+axes[1, 1].set_title("Estimated True Plate Deviation Magnitude (Level Plot)")
+axes[1, 1].set_xlabel("U Coordinate (mm)")
+axes[1, 1].set_ylabel("V Coordinate (mm)")
+fig.colorbar(im_true, ax=axes[1, 1], label="Deviation Magnitude (um)")
 
 plt.suptitle(f"Plate and CMM Measurement Error Analysis: {b} (Global Calibration)", fontsize=14, fontweight='bold')
 plt.tight_layout()
@@ -693,16 +692,29 @@ plt.show()
 
 # --- 8.1 FITTING RESULTS - MISMATCH FIELD ---
 add_md("""
-### 5.3 Spatial Visualization of Measurement Mismatch (Before vs. After Calibration)
-To directly see the impact of CMM geometric distortions and drift, we can plot the **mismatch vector field** itself across the plate. 
+### 5.3 Visualising and Quantifying the Measurement Mismatch (Before vs. After Calibration)
 
-For each hole $i$, the mismatch is the vector difference between the unrotated and rotated measurements of the same physical point:
-* **Raw Mismatch Vector**:
-  $$\\vec{D}_{\\text{raw}, i} = [\\Delta x_{\\text{unrot}, i} - du_{\\text{rot, raw}, i}, \\ \\Delta y_{\\text{unrot}, i} - dv_{\\text{rot, raw}, i}]^T = [dx_{\\text{unrot}, i} + dy_{\\text{rot}, i}, \\ dy_{\\text{unrot}, i} - dx_{\\text{rot}, i}]^T$$
-* **Calibrated Mismatch Vector**:
-  $$\\vec{D}_{\\text{calibrated}, i} = [du_{\\text{unrot, corrected}, i} - du_{\\text{rot, corrected}, i}, \\ dv_{\\text{unrot, corrected}, i} - dv_{\\text{rot, corrected}, i}]^T$$
+#### What is "Mismatch" and Why Does It Cancel Plate Errors?
+To understand the core of the self-calibration method, we must distinguish between coordinate **deviations** and **mismatch**:
+* **Plate Deviation (Manufacturing Error)**: Let $\\vec{e}_{\\text{plate}, i} = (\\Delta u_i, \\Delta v_i)^T$ be the true, unknown manufacturing deviation of hole $i$ from its nominal position $(u_i, v_i)$. **We make no assumptions about the manufacturing quality of the plate**—the holes can have arbitrary physical deviations from their nominal positions.
+* **CMM Systematic Error**: When the CMM measures a coordinate, it introduces systematic geometric errors (scale errors $s_x, s_y$, squareness $\\alpha$, and thermal drift). Since the plate is measured in two orientations (unrotated and rotated $90^\\circ$ clockwise), the same physical hole $i$ is probed at two completely different coordinates on the CMM bed:
+  - In the unrotated setup, CMM errors distort the coordinate as $\\vec{E}_{\\text{CMM, unrot}, i}$.
+  - In the rotated setup, CMM errors distort the coordinate as $\\vec{E}_{\\text{CMM, rot}, i}$.
+* **Measurement Mismatch**: The mismatch is the difference between the unrotated and rotated deviations mapped into the plate-fixed coordinate system:
+  $$\\vec{D}_{\\text{mismatch}, i} = \\vec{d}_{\\text{unrot}, i} - \\vec{d}_{\\text{rot, mapped}, i}$$
+  Substituting the model components:
+  $$\\vec{d}_{\\text{unrot}, i} = \\vec{e}_{\\text{plate}, i} + \\vec{E}_{\\text{CMM, unrot}, i} + \\vec{\\epsilon}_{\\text{unrot}, i}$$
+  $$\\vec{d}_{\\text{rot, mapped}, i} = \\vec{e}_{\\text{plate}, i} + \\vec{E}_{\\text{CMM, rot, mapped}, i} + \\vec{\\epsilon}_{\\text{rot}, i}$$
+  Upon subtraction, the arbitrary plate manufacturing error $\\vec{e}_{\\text{plate}, i}$ cancels out completely:
+  $$\\vec{D}_{\\text{mismatch}, i} = (\\vec{E}_{\\text{CMM, unrot}, i} - \\vec{E}_{\\text{CMM, rot, mapped}, i}) + (\\vec{\\epsilon}_{\\text{unrot}, i} - \\vec{\\epsilon}_{\\text{rot}, i})$$
+  
+This cancellation is the fundamental physics of the reversal method. The mismatch is a **pure signature of the CMM's systematic errors and random probe noise**, completely independent of how imperfectly the plate was manufactured.
 
-By plotting these vectors at each grid point, we can visually separate systematic measurement errors from the random noise of the probe.
+#### Visualising the Mismatch: Vector Fields, Level Plots, and Histograms
+Below, we plot three different representations of the mismatch before (raw) and after calibration:
+1. **Vector Fields**: Showing the direction and magnitude of the mismatch vectors $\\vec{D}_{\\text{mismatch}, i}$.
+2. **Level Plots (Color Heatmaps)**: Showing the spatial distribution of the mismatch magnitude across the grid.
+3. **Histograms**: Quantifying the reduction in coordinate errors after self-calibration.
 """)
 
 add_code("""
@@ -713,23 +725,60 @@ dv_mismatch_before = dy_u - dv_rot_raw
 du_mismatch_after = du_unrot_c - du_rot_c
 dv_mismatch_after = dv_unrot_c - dv_rot_c
 
-fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+# Compute mismatch magnitudes in micrometers
+mag_before = np.sqrt(du_mismatch_before**2 + dv_mismatch_before**2) * 1000
+mag_after = np.sqrt(du_mismatch_after**2 + dv_mismatch_after**2) * 1000
 
+# Create a 3x2 grid of plots
+fig, axes = plt.subplots(3, 2, figsize=(15, 18))
+
+# --- Row 1: Vector Fields ---
 # Plot raw mismatch vector field
-q_before = axes[0].quiver(u_grid, v_grid, du_mismatch_before, dv_mismatch_before, scale=0.2, color='#d95f02')
-axes[0].quiverkey(q_before, 0.9, 0.95, 0.01, '10 um', labelpos='E', coordinates='axes')
-axes[0].set_title("Raw Coordinate Mismatch (Uncalibrated)\\nShows CMM Scale, Squareness & Drift distortions")
-axes[0].set_xlabel("U Coordinate (mm)")
-axes[0].set_ylabel("V Coordinate (mm)")
+q_before = axes[0, 0].quiver(u_grid, v_grid, du_mismatch_before, dv_mismatch_before, scale=0.2, color='#d95f02')
+axes[0, 0].quiverkey(q_before, 0.9, 0.95, 0.01, '10 um', labelpos='E', coordinates='axes')
+axes[0, 0].set_title("Raw Coordinate Mismatch (Vector Field)\\nShows CMM Scale, Squareness & Drift distortions")
+axes[0, 0].set_xlabel("U Coordinate (mm)")
+axes[0, 0].set_ylabel("V Coordinate (mm)")
 
 # Plot calibrated mismatch vector field
-q_after = axes[1].quiver(u_grid, v_grid, du_mismatch_after, dv_mismatch_after, scale=0.2, color='#1b9e77')
-axes[1].quiverkey(q_after, 0.9, 0.95, 0.01, '10 um', labelpos='E', coordinates='axes')
-axes[1].set_title("Calibrated Coordinate Mismatch\\nOnly CMM probe repeatability noise remains (no trends)")
-axes[1].set_xlabel("U Coordinate (mm)")
-axes[1].set_ylabel("V Coordinate (mm)")
+q_after = axes[0, 1].quiver(u_grid, v_grid, du_mismatch_after, dv_mismatch_after, scale=0.2, color='#1b9e77')
+axes[0, 1].quiverkey(q_after, 0.9, 0.95, 0.01, '10 um', labelpos='E', coordinates='axes')
+axes[0, 1].set_title("Calibrated Coordinate Mismatch (Vector Field)\\nOnly random CMM probe repeatability noise remains")
+axes[0, 1].set_xlabel("U Coordinate (mm)")
+axes[0, 1].set_ylabel("V Coordinate (mm)")
 
-plt.suptitle(f"Spatial Measurement Mismatch Vector Fields: {b}", fontsize=14, fontweight='bold')
+# --- Row 2: Level Plots (Color Heatmaps) ---
+# Raw Mismatch Magnitude Level Plot
+im_before = axes[1, 0].imshow(mag_before, origin='lower', extent=[u_vals.min(), u_vals.max(), v_vals.min(), v_vals.max()],
+                              cmap='plasma', aspect='auto', vmin=0, vmax=15)
+axes[1, 0].set_title("Raw Mismatch Magnitude (Level Plot in um)")
+axes[1, 0].set_xlabel("U Coordinate (mm)")
+axes[1, 0].set_ylabel("V Coordinate (mm)")
+fig.colorbar(im_before, ax=axes[1, 0], label="Mismatch Magnitude (um)")
+
+# Calibrated Mismatch Magnitude Level Plot
+im_after = axes[1, 1].imshow(mag_after, origin='lower', extent=[u_vals.min(), u_vals.max(), v_vals.min(), v_vals.max()],
+                             cmap='plasma', aspect='auto', vmin=0, vmax=15)
+axes[1, 1].set_title("Calibrated Mismatch Magnitude (Level Plot in um)")
+axes[1, 1].set_xlabel("U Coordinate (mm)")
+axes[1, 1].set_ylabel("V Coordinate (mm)")
+fig.colorbar(im_after, ax=axes[1, 1], label="Mismatch Magnitude (um)")
+
+# --- Row 3: Histograms of Mismatch Magnitude ---
+# Histogram of Raw vs. Calibrated Mismatch
+axes[2, 0].hist(mag_before.flatten(), bins=30, alpha=0.7, label='Raw mismatch', color='#d95f02', edgecolor='black')
+axes[2, 0].set_xlabel("Mismatch between runs (um)")
+axes[2, 0].set_ylabel("Count")
+axes[2, 0].set_title("Distribution of Raw (Uncorrected) Errors")
+axes[2, 0].legend()
+
+axes[2, 1].hist(mag_after.flatten(), bins=30, alpha=0.7, label='Self-Calibrated mismatch', color='#1b9e77', edgecolor='black')
+axes[2, 1].set_xlabel("Mismatch between runs (um)")
+axes[2, 1].set_ylabel("Count")
+axes[2, 1].set_title("Distribution of Calibrated (Corrected) Errors")
+axes[2, 1].legend()
+
+plt.suptitle(f"Measurement Mismatch Analysis: {b}\\nComparison of Coordinate Errors Before vs. After Calibration", fontsize=16, fontweight='bold')
 plt.tight_layout()
 plt.show()
 """)
