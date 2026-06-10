@@ -35,6 +35,9 @@ By measuring a rectangular grid plate (transfer standard) in two orientations—
 ## Glossary of Technical Terms
 Before diving into the mathematics and code, we define several key metrological terms used throughout this notebook:
 * **Block (or Run)**: A single complete measurement sequence of all 943 holes on the grid plate. In this analysis, we have 8 blocks/runs corresponding to two physical panels measured on their Top and Bottom sides.
+* **Deviation**: In coordinate metrology, the difference between the measured coordinate value of a feature and its nominal design coordinate:
+  $$\\text{deviation} = \\text{measured value} - \\text{nominal value}$$
+  In the raw CSV files, deviations are stored in the difference column (e.g., `diff(mm)` or `Unnamed: 9`) and ingested as `dx` and `dy` values.
 * **Reversal Method (Self-Calibration)**: A coordinate metrology technique that uses geometric symmetries (e.g., rotating an artifact by $90^\\circ$ and measuring it again) to mathematically separate and decouple the systematic errors of the measuring instrument (CMM) from the manufacturing deviations of the artifact itself, without needing a pre-calibrated reference standard.
 * **Scale Error ($s_x, s_y$)**: The linear positioning error along a CMM axis, typically expressed in parts per million (ppm). It represents a constant ratio stretch or contraction of the coordinate scale (e.g., $10$ ppm scale error means a nominal $1$ meter distance is measured as $1\\text{ m} + 10\\ \\mu\\text{m}$).
 * **Squareness (Shear) Error ($\\alpha$)**: The non-perpendicularity or angular deviation of the CMM's measurement axes from exactly $90^\\circ$. A positive squareness error means the angle between the X and Y axes is slightly less than $90^\\circ$, causing systematic shearing deviations in the measured coordinates.
@@ -43,6 +46,7 @@ Before diving into the mathematics and code, we define several key metrological 
 * **Nominal Coordinates ($u, v$)**: The ideal, theoretical coordinates of the grid holes on the physical plate, assuming perfect manufacturing and zero error.
 * **Plate-Fixed Coordinates**: The coordinates system attached to the physical grid plate. Regardless of how the plate is placed or rotated on the CMM bed, a specific hole always has the same plate-fixed coordinate $(u, v)$.
 * **CMM Coordinate System ($X, Y$)**: The coordinate system of the measurement machine. When the plate is rotated, the mapping between the plate-fixed $(u, v)$ coordinates and the CMM $(X, Y)$ coordinates changes.
+* **Alignment Rotations ($\\theta_1, \\theta_2$)**: The physical rotation angle of the plate relative to the CMM axes for the unrotated setup ($\\theta_1$) and rotated setup ($\\theta_2$). These are run-specific, setup-dependent parameters representing manual clamping/alignment errors. They differ from the nominal rotation angle ($90^\\circ$ clockwise), which is a coordinate system rotation.
 
 ---
 
@@ -270,22 +274,81 @@ $$\\Delta y_{\\text{rot},i} = -\\Delta u_i - s_y u_i + (\\theta_2 + \\alpha) v_i
 
 *(Note: The constant term $500 \\cdot s_y$ has been absorbed into the translation offset parameter $T'_{y2}$.)*
 
-### 3.2 Decoupling Scale and Drift
-In a single unrotated run, the CMM scans the grid row-by-row. Consequently, the elapsed time $t_u$ is highly collinear with the Y-coordinate $v$. This makes it mathematically impossible to separate the Y scale error $s_y$ from Y-drift $c_y$ within one run.
+### 3.2 Small-Angle Approximation and Model Linearity (Why no $\\sin$ or $\\cos$?)
+A coordinate rotation by an angle $\\theta$ is typically modeled non-linearly using trigonometric functions:
+$$X' = X\\cos\\theta - Y\\sin\\theta, \\quad Y' = X\\sin\\theta + Y\\cos\\theta$$
+Similarly, a shear (squareness) error $\\alpha$ shifts Y-coordinates by $X\\tan\\alpha$.
 
-The $90^\\circ$ rotated run breaks this collinearity because the scan time $t_r$ is now collinear with the X-coordinate $u$. Solving all 8 blocks simultaneously in a global sparse least-squares system ($45,264$ equations, $15,171$ variables) allows for the complete decoupling of scale, squareness, and drift.
+In high-precision coordinate metrology, the alignment angles (rotation errors $\\theta_1, \\theta_2$) and the shear angle (squareness error $\\alpha$) are extremely small. 
+* $\\theta_1, \\theta_2$ are typically on the order of milliradians (e.g., $1.2$ mrad $\\approx 0.07^\\circ$).
+* $\\alpha$ is on the order of microradians (e.g., $17.3\\ \\mu$rad $\\approx 0.001^\\circ$).
+
+For any very small angle $\\epsilon \\ll 1$ (in radians), the **small-angle approximation** states that:
+$$\\sin \\epsilon \\approx \\epsilon, \\quad \\cos \\epsilon \\approx 1, \\quad \\text{and} \\quad \\tan \\epsilon \\approx \\epsilon$$
+Applying these approximations linearizes the rotation and shear equations:
+* The rotation term $-v\\sin\\theta$ becomes $-v\\theta$.
+* The rotation term $u\\sin\\theta$ becomes $u\\theta$.
+* The shear term $u\\tan\\alpha$ becomes $u\\alpha$.
+
+This linearization is crucial: it converts a non-linear optimization problem into a linear least-squares problem, which can be solved globally and uniquely using fast linear algebra.
+
+### 3.3 Separation of Rotation Parameters ($\\theta_1, \\theta_2$ vs. $\\theta$)
+* **Coordinate System Rotation ($\\theta$)**: The nominal coordinate system rotates by exactly $90^\\circ$ clockwise when the plate is rotated. This is a deterministic, error-free rotation modeled in the nominal coordinate mapping: $(u, v) \\to (v, 500-u)$.
+* **Alignment Rotation Errors ($\\theta_1$ and $\\theta_2$)**: 
+  - **$\\theta_1$** is the small rotation error when the plate is clamped in the *unrotated* position.
+  - **$\\theta_2$** is the small rotation error when the plate is clamped in the *rotated* position.
+  These two parameters are completely independent because the plate is physically removed, rotated, and re-clamped on the CMM bed between runs. $\\theta_1$ and $\\theta_2$ account for the manual alignment imperfections of these two separate setups.
+
+### 3.4 Identifying the Most Significant Coordinate for Error Coupling
+Different geometric and temporal parameters couple with different nominal coordinates:
+* **Scale Errors ($s_x, s_y$)**: The X-scale error $s_x$ couples directly with the nominal coordinate $u$ along the X-axis ($s_x u$). The Y-scale error $s_y$ couples with $v$ along the Y-axis ($s_y v$).
+* **Squareness (Shear) Error ($\\alpha$)**: Couples with $u$ in the Y-deviation equation ($\\alpha u$), representing the shearing of the Y-axis as a function of X-position.
+* **Temporal Drift ($c_x, c_y$)**: Couples with the elapsed scan time $t$. Crucially, because the CMM scans row-by-row:
+  - In the **unrotated run**, the CMM scans along $u$ first, progressing row-by-row along $v$. Thus, the elapsed scan time $t_u$ is highly collinear with Y-coordinate $v$. The Y-coordinate $v$ is the **most significant coordinate for drift coupling** in the unrotated run, causing high crosstalk between Y-drift ($c_{y,u}$) and Y-scale ($s_y$).
+  - In the **rotated run**, the physical axes are swapped, making the elapsed time $t_r$ collinear with the nominal coordinate $u$.
+  This swap of collinearity between $u$ and $v$ with time in the rotated orientation is the key physical reversal symmetry that enables the global solver to separate drift from scale errors.
 """)
+
 
 # --- 5. FITTING THE GLOBAL SYSTEM ---
 add_md("""
 ## 4. Solving the Global Sparse System
 
-We build the large, sparse design matrix $A$ and observation vector $y$, and solve it using `scipy.sparse.linalg.lsqr`. 
+We formulate the reversal self-calibration as a global linear system of equations:
+$$A x \\approx y$$
+where:
+* **$y$ (Observation Vector)** is the vector containing all measured coordinate deviations ($dx, dy$) across all 8 runs (blocks), for both unrotated and rotated setups.
+* **$A$ (Design Matrix)** represents the linear coefficients mapping our physical model parameters to the observed deviations.
+* **$x$ (Parameter Vector)** is the vector of all unknown parameters we want to estimate:
+  $$x = [\\text{Block}_0\\text{ params}, \\dots, \\text{Block}_7\\text{ params}, s_x, s_y, \\alpha]^T$$
+  For each of the 8 blocks, we estimate $2N$ coordinate deviations ($\\Delta u_i, \\Delta v_i$ for $i=1 \\dots N$), 6 alignment parameters ($\\theta_1, T_{x1}, T_{y1}, \\theta_2, T_{x2}, T_{y2}$), and 4 drift rates ($c_{x,u}, c_{y,u}, c_{x,r}, c_{y,r}$). Adding the 3 global geometric errors ($s_x, s_y, \\alpha$) yields a total of $15,171$ variables.
 
-The parameter vector is structured as:
-$$x = [\\text{Block}_0\\text{ params}, \\dots, \\text{Block}_7\\text{ params}, s_x, s_y, \\alpha]$$
-where each block has $2N$ coordinate deviations (\\Delta u_i, \\Delta v_i$ for $i=1 \\dots N$), $6$ alignment parameters, and $4$ drift parameters.
+### 4.1 Design Matrix Structure and Sparsity
+The design matrix $A$ has dimensions of $45,264 \\times 15,171$. 
+* **Equations per hole**: For each hole in each block, we have 4 equations representing the measured $\\Delta x_{\\text{unrot}}, \\Delta y_{\\text{unrot}}, \\Delta x_{\\text{rot}}, \\Delta y_{\\text{rot}}$.
+* **Sparsity**: Each equation only involves a small subset of parameters (the coordinate deviations of that specific hole, the alignment and drift of that specific block, and the global geometric parameters). Consequently, $A$ is extremely sparse, with over $99.9\\%$ of its entries equal to zero. We store $A$ using a Compressed Sparse Row (`csr_matrix`) format to minimize memory consumption and optimize matrix-vector multiplications.
+
+### 4.2 Linear Least-Squares Optimization
+Because our system is overdetermined (more equations than variables) and contains measurement noise, we cannot solve it exactly ($A x = y$). Instead, we formulate it as a linear least-squares optimization problem:
+$$\\min_x \\|A x - y\\|_2^2$$
+This objective function minimizes the sum of squared residuals:
+$$S = \\sum_{k=1}^{M} (y_k - \\sum_{j=1}^{P} A_{kj} x_j)^2$$
+
+### 4.3 Statistical Assumptions about Noise
+By solving this using standard least-squares, we make the following statistical assumptions about the measurement noise (residuals $\\epsilon = y - A x$):
+1. **Zero Mean**: $E[\\epsilon] = 0$, meaning there are no unmodeled systematic biases remaining.
+2. **Homoscedasticity**: The noise variance $\\sigma^2$ is constant across all measurements (homoscedastic probe noise).
+3. **Independence**: The measurement errors at different holes and runs are uncorrelated ($Cov(\\epsilon_i, \\epsilon_j) = 0$ for $i \\neq j$).
+Under these assumptions, the **Gauss-Markov Theorem** states that the least-squares estimator is the **Best Linear Unbiased Estimator (BLUE)**—meaning it has the minimum variance among all linear unbiased estimators.
+
+### 4.4 The Choice of LSQR Solver
+To solve this large, sparse optimization problem, we use the **LSQR algorithm** (`scipy.sparse.linalg.lsqr`).
+* **Why LSQR?**: LSQR is an iterative conjugate-gradient-like method based on the Lanczos bidiagonalization process.
+* **Advantages over Direct Methods**: 
+  - **Memory Efficiency**: Direct methods (like QR factorization or SVD) require dense intermediate matrices that would exceed available memory. LSQR only requires matrix-vector multiplications ($A v$ and $A^T u$), keeping memory usage minimal.
+  - **Numerical Stability**: LSQR is analytically equivalent to solving the normal equations $A^T A x = A^T y$, but it is far more numerically stable because it avoids explicitly constructing the covariance matrix $A^T A$, which has a squared condition number ($cond(A^T A) = cond(A)^2$) and would amplify rounding errors.
 """)
+
 
 add_code("""
 # 1. Flatten the nominal coordinate grids to match LSQR 1D equations
@@ -542,6 +605,21 @@ plt.show()
 add_md("""
 ### 5.2 Vector Field of Deviations and Mismatch Histogram (`panel1Top1`)
 We plot the vector field of coordinate deviations to visually confirm the alignment and calibration of the runs.
+
+#### Understanding the Vector Fields and "Deviations":
+In metrology, **deviations** are the differences between measured coordinates and their nominal (design) coordinates. For any hole $i$:
+$$\\text{deviation}_x = x_{\\text{measured}, i} - u_{\\text{nominal}, i}$$
+$$\\text{deviation}_y = y_{\\text{measured}, i} - v_{\\text{nominal}, i}$$
+
+In the plots below:
+* **The grid points** represent the nominal hole coordinates $(u, v)$ on the plate.
+* **The arrows (vectors)** represent the magnitude and direction of the coordinate deviations at each hole. The length of the arrows is scaled for visual clarity (scaled by a factor of 0.5, with a reference arrow showing a magnitude of $20\\ \\mu$m).
+* **Raw Deviations: Unrotated Run** shows the raw deviations $\\Delta x_{\\text{unrot}}, \\Delta y_{\\text{unrot}}$ measured directly on CMM A.
+* **Raw Deviations: Rotated Run** shows the raw deviations after mathematically rotating the coordinate system to plate-fixed coordinates ($-\\Delta y_{\\text{rot}}, \\Delta x_{\\text{rot}}$).
+* **Estimated True Plate Deviations (Self-Calibrated)** shows the estimated physical deviations $(\\Delta u, \\Delta v)$ of the plate itself. These represent the plate's manufacturing errors, obtained by subtracting the CMM's scale, squareness, and drift errors from the unrotated measurements.
+* **Histogram of Measurement Mismatch** compares the coordinate mismatch between the unrotated and rotated runs before and after self-calibration. The mismatch is the vector difference:
+  $$\\text{Mismatch} = \\sqrt{(\\Delta u_{\\text{unrot, corrected}} - \\Delta u_{\\text{rot, corrected}})^2 + (\\Delta v_{\\text{unrot, corrected}} - \\Delta v_{\\text{rot, corrected}})^2}$$
+  The dramatic shift of the histogram to the left (mean mismatch dropping from $\\approx 6\\ \\mu$m to $\\approx 1.2\\ \\mu$m) proves that our calibration has successfully removed the systematic geometric and drift errors, leaving only the random repeatability noise of the CMM probe.
 """)
 
 add_code("""
@@ -955,6 +1033,29 @@ Let's compare the downsampling configurations:
    - The custom **Border + Diagonals** pattern measures only 223 holes (23.6% of the grid), saving **76.4% of measurement time**.
    - Yet, it yields $s_x = 28.62$ ppm, $s_y = 2.91$ ppm, and $\\alpha = 7.01\\ \\mu\\text{rad}$.
    - While still showing a slight bias compared to the full 943-hole fit, it preserves the squareness parameter $\\alpha$ and scale errors far better than a uniform grid of similar size, demonstrating how targeted geometric sampling can optimize CMM verification runs.
+
+### 7.3 Model Reformulation to Reduce Parameter Crosstalk (Centering)
+A common challenge in linear estimation and bootstrapping is parameter **crosstalk** (multicollinearity). For example, the high correlation ($\approx 0.80$) between $s_y$ and $\\alpha$ means their uncertainties are coupled. 
+
+Could the model be reformulated to reduce this crosstalk and make the bootstrap and optimization more robust?
+* **Yes, by Centering Coordinates (Orthogonalization)**:
+  Currently, the nominal coordinates $(u, v)$ start at the bottom-left corner $(0, 0)$. When we rotate the plate, any angular rotation $\\theta$ around $(0, 0)$ also causes a translation shift. This causes high correlation between the translation offsets ($T_x, T_y$) and the rotation angle ($\\theta$), scale errors, and squareness ($\\alpha$).
+  
+  If we instead center the nominal coordinates around the center of the grid (barycenter):
+  $$\\bar{u}_i = u_i - u_{\\text{mean}}, \\quad \\bar{v}_i = v_i - v_{\\text{mean}}$$
+  and express the model using $\\bar{u}_i$ and $\\bar{v}_i$:
+  - The rotation pivot moves to the center of the plate.
+  - The columns of the design matrix $A$ representing translation offsets ($T_x, T_y$) and rotation ($\\theta$), scale, and squareness errors become mathematically **orthogonal** (their dot product is zero).
+  - This completely eliminates the correlation (crosstalk) between translation offsets and coordinate-scaling parameters.
+
+* **Centering Time**:
+  Similarly, time $t$ starts at $0$ at the beginning of each run. This couples the initial translation $T$ with the linear drift rate $c$ (since the offset at $t=0$ depends on $c$).
+  
+  If we center the time variable for each run:
+  $$\\bar{t}_i = t_i - t_{\\text{mean}}$$
+  the translation parameters $T_x, T_y$ will represent the average offset of the CMM over the course of the run, which is completely uncorrelated with the drift rate $c$.
+  
+  Implementing these coordinate and time centering transformations in the design matrix would decouple the alignment/fixturing offsets from the physical CMM errors, reducing standard errors and making bootstrap sampling converge much faster with less parameter crosstalk.
 """)
 
 # --- 12. TRANSFER STANDARD WORK ---
